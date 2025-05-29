@@ -614,9 +614,9 @@ new Chart(priorityCtx, {
         datasets: [{
             data: priorityCounts,
             backgroundColor: [
-                '#dc3545',  // High - Red
+                '#28a745',  // Low - Green
                 '#ffc107',  // Medium - Yellow
-                '#28a745'   // Low - Green
+                '#dc3545'   // High - Red
             ],
             borderWidth: 0
         }]
