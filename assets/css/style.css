@@ -17,17 +17,29 @@
     box-sizing: border-box;
 }
 
+html {
+    height: 100%;
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: var(--dark-color);
     background-color: #f5f5f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
     padding: 20px;
+}
+
+/* Main content wrapper */
+.content-wrapper {
+    flex: 1 0 auto;
 }
 
 /* Navigation Bar Styles */
@@ -101,10 +113,8 @@ body {
     background: linear-gradient(to right, #1a237e, #0d47a1);
     color: white;
     padding: 2rem 0;
-    margin-top: 3rem;
-    position: relative;
-    bottom: 0;
-    width: 100%;
+    margin-top: auto;
+    flex-shrink: 0;
 }
 
 .footer p {
