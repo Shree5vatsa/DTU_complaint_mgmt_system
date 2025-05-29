@@ -54,7 +54,7 @@ try {
             AND status_name != 'rejected'
         )
         GROUP BY pl.id, pl.level_name
-        ORDER BY pl.id
+        ORDER BY FIELD(pl.level_name, 'high', 'medium', 'low')
     ");
     $stmt->execute();
     $unresolved_by_priority = $stmt->fetchAll();
@@ -614,9 +614,9 @@ new Chart(priorityCtx, {
         datasets: [{
             data: priorityCounts,
             backgroundColor: [
-                '#28a745',  // Low - Green
+                '#dc3545',  // High - Red
                 '#ffc107',  // Medium - Yellow
-                '#dc3545'   // High - Red
+                '#28a745'   // Low - Green
             ],
             borderWidth: 0
         }]

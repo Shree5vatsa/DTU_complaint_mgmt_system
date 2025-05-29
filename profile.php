@@ -170,7 +170,7 @@ include 'includes/header.php';
                             if (isset($user['image']) && $user['image'] !== 'default.jpg') {
                                 echo 'uploads/profile_pictures/' . htmlspecialchars($user['image']);
                             } else {
-                                echo isset($user['gender']) && $user['gender'] === 'female' ? 'woman.png' : 'man.png';
+                                echo isset($user['gender']) && $user['gender'] === 'Female' ? 'woman.png' : 'man.png';
                             }
                         ?>" alt="Profile Picture" class="profile-picture">
                         
@@ -238,8 +238,9 @@ include 'includes/header.php';
                         <div class="mb-3">
                             <label for="gender" class="form-label">Gender</label>
                             <select class="form-select" id="gender" name="gender" required>
-                                <option value="male" <?php echo (isset($user['gender']) && $user['gender'] === 'male') ? 'selected' : ''; ?>>Male</option>
-                                <option value="female" <?php echo (isset($user['gender']) && $user['gender'] === 'female') ? 'selected' : ''; ?>>Female</option>
+                                <option value="">Select Gender</option>
+                                <option value="Male" <?php echo (isset($user['gender']) && $user['gender'] === 'Male') ? 'selected' : ''; ?>>Male</option>
+                                <option value="Female" <?php echo (isset($user['gender']) && $user['gender'] === 'Female') ? 'selected' : ''; ?>>Female</option>
                             </select>
                         </div>
                         

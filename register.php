@@ -355,8 +355,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <label for="gender" class="form-label">Gender</label>
                             <select class="form-select" id="gender" name="gender" required>
                                 <option value="">Select Gender</option>
-                                <option value="male" <?php echo (isset($_POST['gender']) && $_POST['gender'] == 'male') ? 'selected' : ''; ?>>Male</option>
-                                <option value="female" <?php echo (isset($_POST['gender']) && $_POST['gender'] == 'female') ? 'selected' : ''; ?>>Female</option>
+                                <option value="Male" <?php echo (isset($_POST['gender']) && $_POST['gender'] == 'Male') ? 'selected' : ''; ?>>Male</option>
+                                <option value="Female" <?php echo (isset($_POST['gender']) && $_POST['gender'] == 'Female') ? 'selected' : ''; ?>>Female</option>
                             </select>
                             <div class="invalid-feedback">
                                 Please select your gender.

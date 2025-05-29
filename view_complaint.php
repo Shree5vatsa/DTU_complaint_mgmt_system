@@ -120,22 +120,22 @@ try {
     
     // Handle status update
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if ($_POST['action'] === 'update_status' && $auth->hasPermission('resolve_complaint')) {
-            $new_status = $_POST['status'];
+        if ($auth->hasPermission('update_complaint_status')) {
+            $new_status = $_POST['status_id'];
             $comments = $_POST['comments'];
             
             // Start transaction
             $pdo->beginTransaction();
             
             try {
-                // Update complaint status
-                $stmt = $pdo->prepare("UPDATE complaints SET status_id = ? WHERE id = ?");
+                // Update complaint status and last_updated timestamp
+                $stmt = $pdo->prepare("UPDATE complaints SET status_id = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?");
                 $stmt->execute([$new_status, $complaint_id]);
                 
                 // Add to history
                 $stmt = $pdo->prepare("
-                    INSERT INTO complaint_history (complaint_id, status_id, comments, updated_by)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO complaint_history (complaint_id, status_id, comments, updated_by, timestamp)
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
                 ");
                 $stmt->execute([$complaint_id, $new_status, $comments, $user['id']]);
                 
@@ -222,11 +222,12 @@ include 'includes/header.php';
     <?php if ($auth->hasPermission('update_complaint_status')): ?>
     <div class="update-status">
         <h2>Update Status</h2>
-        <form class="status-form" method="POST">
+        <form class="status-form" method="POST" action="">
+            <input type="hidden" name="action" value="update_status">
             <select name="status_id" class="form-control" required>
                 <option value="">Select Status</option>
                 <?php foreach ($status_types as $status): ?>
-                    <option value="<?php echo $status['id']; ?>">
+                    <option value="<?php echo $status['id']; ?>" <?php echo ($complaint['status_id'] == $status['id']) ? 'selected' : ''; ?>>
                         <?php echo ucfirst($status['status_name']); ?>
                     </option>
                 <?php endforeach; ?>

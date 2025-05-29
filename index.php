@@ -93,17 +93,50 @@ try {
     $complaints = $stmt->fetchAll();
     
     // Get statistics
-    $stats = [
-        'total' => 0,
-        'pending' => 0,
-        'in_progress' => 0,
-        'resolved' => 0
-    ];
+    $stats_sql = "
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN cst.status_name = 'pending' THEN 1 ELSE 0 END) as pending,
+            SUM(CASE WHEN cst.status_name = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
+            SUM(CASE WHEN cst.status_name = 'resolved' THEN 1 ELSE 0 END) as resolved
+        FROM complaints c
+        JOIN complaint_status_types cst ON c.status_id = cst.id
+        JOIN complaint_categories cc ON c.category_id = cc.id
+        WHERE 1=1
+    ";
     
-    foreach ($complaints as $complaint) {
-        $stats['total']++;
-        $stats[$complaint['status_name']]++;
+    // Add role-based filters for statistics
+    switch ($user['role_id']) {
+        case 1: // Administrator - can see all complaints
+            break;
+            
+        case 2: // HOD - can see department complaints
+            $stats_sql .= " AND cc.department_id = ?";
+            break;
+            
+        case 3: // Warden - can see hostel complaints
+            $stats_sql .= " AND cc.category_name = 'Hostel'";
+            break;
+            
+        case 4: // Teacher - can see department complaints
+            $stats_sql .= " AND cc.department_id = ?";
+            break;
+            
+        case 5: // Student - can only see their own complaints
+            $stats_sql .= " AND c.user_id = ?";
+            break;
+            
+        default:
+            // For any other role, show only their own complaints
+            $stats_sql .= " AND c.user_id = ?";
     }
+    
+    $stmt = $pdo->prepare($stats_sql);
+    $stmt->execute($params);
+    $stats = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Ensure all stats have a value
+    $stats = array_map('intval', $stats);
     
 } catch (PDOException $e) {
     error_log($e->getMessage());

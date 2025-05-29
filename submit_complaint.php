@@ -74,11 +74,13 @@ try {
                 $stmt = $pdo->prepare("
                     INSERT INTO complaints (
                         id, user_id, category_id, sub_category_id,
-                        title, description, status_id, priority_id
+                        title, description, status_id, priority_id,
+                        date_created, last_updated
                     ) VALUES (
                         ?, ?, ?, ?, ?, ?, 
                         (SELECT id FROM complaint_status_types WHERE status_name = 'pending'),
-                        ?
+                        ?,
+                        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                 ");
                 
@@ -95,12 +97,13 @@ try {
                 // Add initial history entry
                 $stmt = $pdo->prepare("
                     INSERT INTO complaint_history (
-                        complaint_id, status_id, comments, updated_by
+                        complaint_id, status_id, comments, updated_by, timestamp
                     ) VALUES (
                         ?, 
                         (SELECT id FROM complaint_status_types WHERE status_name = 'pending'),
                         'Complaint submitted',
-                        ?
+                        ?,
+                        CURRENT_TIMESTAMP
                     )
                 ");
                 $stmt->execute([$complaint_id, $user['id']]);
