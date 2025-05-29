@@ -11,18 +11,26 @@ ini_set('display_errors', 1);
 session_start();
 
 // Include required files
-require_once 'includes/config.php';
+require_once 'includes/db_config.php';
 require_once 'includes/auth.php';
 
+// Initialize Auth class
+$auth = new Auth($pdo);
+
 // Check if user is logged in
-if (!isLoggedIn()) {
+if (!$auth->isLoggedIn()) {
     header('Location: login.php');
     exit();
 }
 
 // Get user details
-$user_id = $_SESSION['user_id'];
-$user_role = getUserRole($user_id);
+$user = $auth->getCurrentUser();
+if (!$user) {
+    // If we can't get user details, log them out
+    $auth->logout();
+    header('Location: login.php');
+    exit();
+}
 
 try {
     // Get complaints based on user role and permissions
@@ -45,17 +53,37 @@ try {
         JOIN complaint_status_types cst ON c.status_id = cst.id
         JOIN priority_levels pl ON c.priority_id = pl.id
         LEFT JOIN user assigned ON c.assigned_to = assigned.id
+        WHERE 1=1
     ";
     
     // Add role-based filters
-    if (!hasPermission($user_id, 'view_all_complaints')) {
-        if (hasPermission($user_id, 'view_department_complaints')) {
-            $sql .= " WHERE cc.department_id = (SELECT department_id FROM user WHERE id = ?)";
-            $params[] = $user_id;
-        } else {
-            $sql .= " WHERE c.user_id = ?";
-            $params[] = $user_id;
-        }
+    switch ($user['role_id']) {
+        case 1: // Administrator - can see all complaints
+            break;
+            
+        case 2: // HOD - can see department complaints
+            $sql .= " AND cc.department_id = ?";
+            $params[] = $user['department_id'];
+            break;
+            
+        case 3: // Warden - can see hostel complaints
+            $sql .= " AND cc.category_name = 'Hostel'";
+            break;
+            
+        case 4: // Teacher - can see department complaints
+            $sql .= " AND cc.department_id = ?";
+            $params[] = $user['department_id'];
+            break;
+            
+        case 5: // Student - can only see their own complaints
+            $sql .= " AND c.user_id = ?";
+            $params[] = $user['id'];
+            break;
+            
+        default:
+            // For any other role, show only their own complaints
+            $sql .= " AND c.user_id = ?";
+            $params[] = $user['id'];
     }
     
     $sql .= " ORDER BY c.date_created DESC LIMIT 50";
@@ -88,7 +116,7 @@ try {
 <div class="container">
     <div class="dashboard-header">
         <h1>Dashboard</h1>
-        <?php if (hasPermission($user_id, 'create_complaint')): ?>
+        <?php if ($auth->hasPermission('create_complaint')): ?>
             <a href="submit_complaint.php" class="btn btn-primary">Submit New Complaint</a>
         <?php endif; ?>
     </div>

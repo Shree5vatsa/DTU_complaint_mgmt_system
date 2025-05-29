@@ -7,7 +7,7 @@ ini_set('error_log', __DIR__ . '/../logs/error.log');
 
 // Database configuration
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'dtu_portal');
+define('DB_NAME', 'dtu_portal');  // Changed to match the SQL file name
 define('DB_USER', 'root');  // Change this if you have a different MySQL username
 define('DB_PASS', '');      // Change this if you have set a MySQL password
 
@@ -31,6 +31,11 @@ if (!file_exists(__DIR__ . '/../logs')) {
 }
 
 try {
+    // First try to create the database if it doesn't exist
+    $temp_pdo = new PDO("mysql:host=" . DB_HOST, DB_USER, DB_PASS);
+    $temp_pdo->exec("CREATE DATABASE IF NOT EXISTS " . DB_NAME . " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+    
+    // Now connect to the database
     $pdo = new PDO(
         "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
         DB_USER,

@@ -1,18 +1,12 @@
 <?php
-session_start();
+// Include required files with absolute paths
+$root_path = __DIR__;
+require_once $root_path . '/includes/db_config.php';
+require_once $root_path . '/includes/auth.php';
 
-// Clear all session variables
-$_SESSION = array();
+$auth = new Auth($pdo);
+$auth->logout();
 
-// Destroy the session cookie
-if (isset($_COOKIE[session_name()])) {
-    setcookie(session_name(), '', time() - 3600, '/');
-}
-
-// Destroy the session
-session_destroy();
-
-// Redirect to login page
 header('Location: login.php');
 exit();
 ?> 

@@ -1,61 +1,56 @@
 <?php
-require_once '../includes/config.php';
-require_once '../includes/auth.php';
+// Set error reporting
+error_reporting(-1);
+ini_set('display_errors', 1);
 
 header('Content-Type: application/json');
 
-function sendError($message, $code = 400) {
-    http_response_code($code);
-    die(json_encode(['error' => $message]));
-}
+require_once '../includes/db_config.php';
+require_once '../includes/auth.php';
 
-// Check if request is AJAX
-if (!isset($_SERVER['HTTP_X_REQUESTED_WITH']) || 
-    strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) != 'xmlhttprequest') {
-    sendError('Invalid request method', 403);
-}
+// Initialize Auth class
+$auth = new Auth($pdo);
 
 // Check if user is logged in
-if (!isLoggedIn()) {
-    sendError('Unauthorized', 401);
+if (!$auth->isLoggedIn()) {
+    http_response_code(401);
+    echo json_encode(['error' => 'Unauthorized']);
+    exit();
 }
 
-// Validate input
-if (!isset($_POST['category_id']) || !is_numeric($_POST['category_id'])) {
-    sendError('Invalid category ID');
+// Get user details
+$user = $auth->getCurrentUser();
+if (!$user) {
+    $auth->logout();
+    http_response_code(401);
+    echo json_encode(['error' => 'Invalid user session']);
+    exit();
 }
 
-$category_id = (int)$_POST['category_id'];
+// Validate category_id
+$category_id = isset($_GET['category_id']) ? (int)$_GET['category_id'] : 0;
+if ($category_id <= 0) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid category ID']);
+    exit();
+}
 
-// Get subcategories for the selected category
 try {
+    // Get subcategories for the given category
     $stmt = $pdo->prepare("
         SELECT id, name, description 
         FROM complaint_subcategories 
         WHERE category_id = ? 
         ORDER BY name
     ");
-    
     $stmt->execute([$category_id]);
-    $subcategories = $stmt->fetchAll();
+    $subcategories = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Generate HTML options
-    $html = '<option value="">Select Subcategory</option>';
-    foreach ($subcategories as $subcategory) {
-        $html .= sprintf(
-            '<option value="%d">%s</option>',
-            $subcategory['id'],
-            htmlspecialchars($subcategory['name'], ENT_QUOTES, 'UTF-8')
-        );
-    }
-    
-    die(json_encode([
-        'success' => true,
-        'html' => $html,
-        'count' => count($subcategories)
-    ]));
+    echo json_encode($subcategories);
     
 } catch (PDOException $e) {
-    error_log("Database Error in get_subcategories.php: " . $e->getMessage());
-    sendError('Failed to fetch subcategories', 500);
+    error_log($e->getMessage());
+    http_response_code(500);
+    echo json_encode(['error' => 'Database error']);
+    exit();
 } 
