@@ -104,27 +104,45 @@ class Auth {
         
         try {
             $stmt = $this->pdo->prepare("
-                SELECT r.role_level
+                SELECT u.*, r.role_name, r.role_level
                 FROM user u
                 JOIN roles r ON u.role_id = r.id
                 WHERE u.id = ? AND u.status = 'active'
             ");
             $stmt->execute([$_SESSION['user_id']]);
-            $role = $stmt->fetch();
+            $user = $stmt->fetch();
+            
+            if (!$user) {
+                return false;
+            }
             
             // Admin has all permissions
-            if ($role && $role['role_level'] >= 100) {
+            if ($user['role_level'] >= 100) {
                 return true;
             }
             
-            // Basic permissions based on role level
+            // Role-based permissions
             switch($permission) {
                 case 'view_all_complaints':
-                    return $role && $role['role_level'] >= 50;
+                    // Admin, HOD, Warden, Teacher can view all complaints in their scope
+                    return in_array($user['role_name'], ['Administrator', 'HOD', 'Warden', 'Teacher']);
+                    
                 case 'create_complaint':
-                    return $role && $role['role_level'] >= 10;
+                    // Everyone can create complaints
+                    return true;
+                    
+                case 'update_complaint_status':
+                    // Admin, HOD, Warden can update status
+                    return in_array($user['role_name'], ['Administrator', 'HOD', 'Warden']);
+                    
                 case 'manage_complaints':
-                    return $role && $role['role_level'] >= 50;
+                    // Admin, HOD, Warden can manage complaints
+                    return in_array($user['role_name'], ['Administrator', 'HOD', 'Warden']);
+                    
+                case 'view_analytics':
+                    // Admin, HOD, Warden can view analytics
+                    return in_array($user['role_name'], ['Administrator', 'HOD', 'Warden']);
+                    
                 default:
                     return false;
             }

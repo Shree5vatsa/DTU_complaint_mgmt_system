@@ -61,22 +61,34 @@ try {
         case 1: // Administrator - can see all complaints
             break;
             
-        case 2: // HOD - can see department complaints
-            $sql .= " AND cc.department_id = ?";
+        case 2: // HOD - can see department complaints and complaints submitted by department students/teachers
+            $sql .= " AND (cc.department_id = ? OR c.user_id = ?)";
+            $params[] = $user['department_id'];
+            $params[] = $user['id'];
+            break;
+            
+        case 3: // Warden - can see hostel complaints and complaints submitted by hostel students
+            $sql .= " AND (cc.category_name = 'Hostel' OR c.user_id = ?)";
+            $params[] = $user['id'];
+            break;
+            
+        case 4: // Teacher - can see department complaints and complaints submitted by department students
+            $sql .= " AND (cc.department_id = ? OR EXISTS (
+                SELECT 1 FROM user submitter 
+                WHERE submitter.id = c.user_id 
+                AND submitter.department_id = ?
+                AND submitter.role_id = 5
+            ))";
+            $params[] = $user['department_id'];
             $params[] = $user['department_id'];
             break;
             
-        case 3: // Warden - can see hostel complaints
-            $sql .= " AND cc.category_name = 'Hostel'";
-            break;
-            
-        case 4: // Teacher - can see department complaints
-            $sql .= " AND cc.department_id = ?";
-            $params[] = $user['department_id'];
-            break;
-            
-        case 5: // Student - can only see their own complaints
-            $sql .= " AND c.user_id = ?";
+        case 5: // Student - can see their own complaints and other students' complaints
+            $sql .= " AND (c.user_id = ? OR EXISTS (
+                SELECT 1 FROM user submitter 
+                WHERE submitter.id = c.user_id 
+                AND submitter.role_id = 5
+            ))";
             $params[] = $user['id'];
             break;
             
@@ -105,25 +117,34 @@ try {
         WHERE 1=1
     ";
     
-    // Add role-based filters for statistics
+    // Add role-based filters for statistics (using the same logic as above)
     switch ($user['role_id']) {
         case 1: // Administrator - can see all complaints
             break;
             
-        case 2: // HOD - can see department complaints
-            $stats_sql .= " AND cc.department_id = ?";
+        case 2: // HOD - can see department complaints and complaints submitted by department students/teachers
+            $stats_sql .= " AND (cc.department_id = ? OR c.user_id = ?)";
             break;
             
-        case 3: // Warden - can see hostel complaints
-            $stats_sql .= " AND cc.category_name = 'Hostel'";
+        case 3: // Warden - can see hostel complaints and complaints submitted by hostel students
+            $stats_sql .= " AND (cc.category_name = 'Hostel' OR c.user_id = ?)";
             break;
             
-        case 4: // Teacher - can see department complaints
-            $stats_sql .= " AND cc.department_id = ?";
+        case 4: // Teacher - can see department complaints and complaints submitted by department students
+            $stats_sql .= " AND (cc.department_id = ? OR EXISTS (
+                SELECT 1 FROM user submitter 
+                WHERE submitter.id = c.user_id 
+                AND submitter.department_id = ?
+                AND submitter.role_id = 5
+            ))";
             break;
             
-        case 5: // Student - can only see their own complaints
-            $stats_sql .= " AND c.user_id = ?";
+        case 5: // Student - can see their own complaints and other students' complaints
+            $stats_sql .= " AND (c.user_id = ? OR EXISTS (
+                SELECT 1 FROM user submitter 
+                WHERE submitter.id = c.user_id 
+                AND submitter.role_id = 5
+            ))";
             break;
             
         default:

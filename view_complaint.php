@@ -38,6 +38,7 @@ try {
             u.name as submitted_by,
             u.email as submitted_by_email,
             d.name as department_name,
+            d.id as department_id,
             cc.category_name,
             cs.name as subcategory_name,
             cst.status_name,
@@ -120,6 +121,13 @@ try {
     
     // Handle status update
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // First check if user has permission to view this complaint
+        if (!$hasPermission) {
+            header("Location: index.php?error=permission_denied");
+            exit();
+        }
+        
+        // Then check if user has permission to update status
         if ($auth->hasPermission('update_complaint_status')) {
             $new_status = $_POST['status_id'];
             $comments = $_POST['comments'];
@@ -150,15 +158,18 @@ try {
                 }
                 
                 $pdo->commit();
-                header("Location: view_complaint.php?id=$complaint_id&success=1");
+                header("Location: view_complaint.php?id=$complaint_id&success=status_updated");
                 exit();
                 
             } catch (Exception $e) {
                 $pdo->rollBack();
-                error_log($e->getMessage());
-                header("Location: view_complaint.php?id=$complaint_id&error=1");
+                error_log("Error updating complaint status: " . $e->getMessage());
+                header("Location: view_complaint.php?id=$complaint_id&error=update_failed");
                 exit();
             }
+        } else {
+            header("Location: view_complaint.php?id=$complaint_id&error=permission_denied");
+            exit();
         }
     }
     

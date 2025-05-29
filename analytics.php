@@ -9,9 +9,9 @@ require_once 'includes/auth.php';
 // Initialize Auth class
 $auth = new Auth($pdo);
 
-// Check if user is logged in and has permission
-if (!$auth->isLoggedIn() || !$auth->hasPermission('view_analytics')) {
-    header('Location: index.php?error=permission_denied');
+// Check if user is logged in and is an administrator
+if (!$auth->isLoggedIn()) {
+    header('Location: login.php');
     exit();
 }
 
@@ -20,6 +20,12 @@ $user = $auth->getCurrentUser();
 if (!$user) {
     $auth->logout();
     header('Location: login.php');
+    exit();
+}
+
+// Check if user is an administrator (role_id = 1)
+if ($user['role_id'] !== 1) {
+    header('Location: index.php?error=permission_denied');
     exit();
 }
 
@@ -82,9 +88,8 @@ try {
             COUNT(*) as total_complaints
         FROM complaints
         WHERE date_created >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
-        GROUP BY DATE_FORMAT(date_created, '%Y-%m-%d %H:00:00')
-        ORDER BY complaint_hour DESC
-        LIMIT 24
+        GROUP BY complaint_hour
+        ORDER BY complaint_hour ASC
     ");
     $stmt->execute();
     $trends = $stmt->fetchAll();
@@ -504,26 +509,27 @@ var hourlyData = new Map();
 for (let i = 23; i >= 0; i--) {
     let hour = new Date(now - i * 3600000);
     hour.setMinutes(0, 0, 0);
-    allHours.push(hour.toISOString());
+    allHours.push(hour);
     hourlyData.set(hour.toISOString().slice(0, 13), 0);
 }
 
 // Fill in actual complaint counts
 dates.forEach((date, index) => {
-    let hourKey = new Date(date).toISOString().slice(0, 13);
+    let dateObj = new Date(date);
+    let hourKey = dateObj.toISOString().slice(0, 13);
     hourlyData.set(hourKey, counts[index]);
 });
 
 // Prepare final datasets
 var formattedDates = allHours.map(date => 
-    new Date(date).toLocaleTimeString([], { 
+    date.toLocaleTimeString([], { 
         hour: '2-digit',
         minute: '2-digit'
     })
 );
 
 var formattedCounts = allHours.map(hour => 
-    hourlyData.get(hour.slice(0, 13)) || 0
+    hourlyData.get(hour.toISOString().slice(0, 13)) || 0
 );
 
 // Create trends chart
@@ -593,7 +599,10 @@ new Chart(ctx, {
                 displayColors: false,
                 callbacks: {
                     title: function(context) {
-                        return allHours[context[0].dataIndex];
+                        return formattedDates[context[0].dataIndex];
+                    },
+                    label: function(context) {
+                        return `Complaints: ${context.raw}`;
                     }
                 }
             }

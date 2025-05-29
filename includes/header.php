@@ -60,7 +60,7 @@ if ($auth->isLoggedIn()) {
                             </li>
                         <?php endif; ?>
                         
-                        <?php if ($auth->hasPermission('view_analytics')): ?>
+                        <?php if ($current_user['role_id'] === 1): ?>
                             <li class="nav-item">
                                 <a class="nav-link <?php echo $current_page === 'analytics.php' ? 'active' : ''; ?>" href="analytics.php">
                                     <i class="fas fa-chart-bar mr-1"></i> Analytics

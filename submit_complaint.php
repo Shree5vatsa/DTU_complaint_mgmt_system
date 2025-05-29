@@ -70,6 +70,43 @@ try {
             $pdo->beginTransaction();
             
             try {
+                // Get the pending status ID
+                $stmt = $pdo->prepare("SELECT id FROM complaint_status_types WHERE status_name = 'pending'");
+                $stmt->execute();
+                $pending_status = $stmt->fetchColumn();
+                
+                if (!$pending_status) {
+                    throw new Exception("Could not find pending status");
+                }
+                
+                // For HOD and Teacher roles, automatically set their department's category
+                if (in_array($user['role_name'], ['HOD', 'Teacher']) && $user['department_id']) {
+                    $stmt = $pdo->prepare("
+                        SELECT id FROM complaint_categories 
+                        WHERE department_id = ?
+                        LIMIT 1
+                    ");
+                    $stmt->execute([$user['department_id']]);
+                    $dept_category = $stmt->fetchColumn();
+                    if ($dept_category) {
+                        $category_id = $dept_category;
+                    }
+                }
+                
+                // For Warden role, automatically set Hostel category
+                if ($user['role_name'] === 'Warden') {
+                    $stmt = $pdo->prepare("
+                        SELECT id FROM complaint_categories 
+                        WHERE category_name = 'Hostel'
+                        LIMIT 1
+                    ");
+                    $stmt->execute();
+                    $hostel_category = $stmt->fetchColumn();
+                    if ($hostel_category) {
+                        $category_id = $hostel_category;
+                    }
+                }
+                
                 // Insert complaint
                 $stmt = $pdo->prepare("
                     INSERT INTO complaints (
@@ -77,9 +114,7 @@ try {
                         title, description, status_id, priority_id,
                         date_created, last_updated
                     ) VALUES (
-                        ?, ?, ?, ?, ?, ?, 
-                        (SELECT id FROM complaint_status_types WHERE status_name = 'pending'),
-                        ?,
+                        ?, ?, ?, ?, ?, ?, ?, ?,
                         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )
                 ");
@@ -91,6 +126,7 @@ try {
                     $subcategory_id,
                     $title,
                     $description,
+                    $pending_status,
                     $priority_id
                 ]);
                 
@@ -99,14 +135,41 @@ try {
                     INSERT INTO complaint_history (
                         complaint_id, status_id, comments, updated_by, timestamp
                     ) VALUES (
-                        ?, 
-                        (SELECT id FROM complaint_status_types WHERE status_name = 'pending'),
-                        'Complaint submitted',
-                        ?,
-                        CURRENT_TIMESTAMP
+                        ?, ?, ?, ?, CURRENT_TIMESTAMP
                     )
                 ");
-                $stmt->execute([$complaint_id, $user['id']]);
+                $stmt->execute([$complaint_id, $pending_status, 'Complaint submitted', $user['id']]);
+                
+                // Auto-assign complaint based on category
+                if ($category_id) {
+                    $stmt = $pdo->prepare("
+                        SELECT cc.department_id, d.name as dept_name
+                        FROM complaint_categories cc
+                        JOIN departments d ON cc.department_id = d.id
+                        WHERE cc.id = ?
+                    ");
+                    $stmt->execute([$category_id]);
+                    $dept_info = $stmt->fetch();
+                    
+                    if ($dept_info) {
+                        // Find HOD or appropriate assignee
+                        $stmt = $pdo->prepare("
+                            SELECT u.id 
+                            FROM user u
+                            JOIN roles r ON u.role_id = r.id
+                            WHERE u.department_id = ? 
+                            AND r.role_name IN ('HOD', 'Warden')
+                            LIMIT 1
+                        ");
+                        $stmt->execute([$dept_info['department_id']]);
+                        $assignee = $stmt->fetchColumn();
+                        
+                        if ($assignee) {
+                            $stmt = $pdo->prepare("UPDATE complaints SET assigned_to = ? WHERE id = ?");
+                            $stmt->execute([$assignee, $complaint_id]);
+                        }
+                    }
+                }
                 
                 $pdo->commit();
                 header("Location: view_complaint.php?id=$complaint_id&success=1");
@@ -114,7 +177,7 @@ try {
                 
             } catch (Exception $e) {
                 $pdo->rollBack();
-                error_log($e->getMessage());
+                error_log("Error submitting complaint: " . $e->getMessage());
                 $error = "Failed to submit complaint. Please try again.";
             }
         }
