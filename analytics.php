@@ -47,21 +47,23 @@ try {
     $stmt->execute();
     $department_stats = $stmt->fetchAll();
     
-    // Get priority distribution
+    // Get unresolved complaints by priority
     $stmt = $pdo->prepare("
         SELECT 
-            pl.level_name,
+            pl.level_name as priority,
             COUNT(*) as count
         FROM complaints c
         JOIN priority_levels pl ON c.priority_id = pl.id
-        JOIN complaint_status_types cst ON c.status_id = cst.id
-        WHERE cst.status_name IN ('pending', 'in_progress')
-        AND cst.status_name != 'rejected'
-        GROUP BY pl.level_name
-        ORDER BY pl.id ASC
+        WHERE c.status_id IN (
+            SELECT id FROM complaint_status_types 
+            WHERE status_name IN ('pending', 'in_progress')
+            AND status_name != 'rejected'
+        )
+        GROUP BY pl.id, pl.level_name
+        ORDER BY FIELD(pl.level_name, 'high', 'medium', 'low')
     ");
     $stmt->execute();
-    $priority_stats = $stmt->fetchAll();
+    $unresolved_by_priority = $stmt->fetchAll();
     
     // Get complaint statistics by category
     $stmt = $pdo->prepare("
@@ -325,8 +327,8 @@ include 'includes/header.php';
             <div class="col-md-6">
                 <div class="card analytics-card h-100">
                     <div class="card-body">
-                        <h3 class="card-title">Unresolved Complaints by Priority</h3>
-                        <p class="text-muted">Distribution of pending and in-progress complaints</p>
+                        <h3 class="card-title">Unresolved Complaints</h3>
+                        <p class="text-muted">By Priority Level</p>
                         <div class="chart-container">
                             <canvas id="priorityChart"></canvas>
                         </div>
@@ -609,8 +611,8 @@ new Chart(ctx, {
 });
 
 // Prepare data for priority pie chart
-var priorities = <?php echo json_encode(array_column($priority_stats, 'level_name')); ?>;
-var priorityCounts = <?php echo json_encode(array_column($priority_stats, 'count')); ?>;
+var priorities = <?php echo json_encode(array_column($unresolved_by_priority, 'priority')); ?>;
+var priorityCounts = <?php echo json_encode(array_column($unresolved_by_priority, 'count')); ?>;
 
 // Create priority pie chart
 var priorityCtx = document.getElementById('priorityChart').getContext('2d');
@@ -621,9 +623,9 @@ new Chart(priorityCtx, {
         datasets: [{
             data: priorityCounts,
             backgroundColor: [
-                '#28a745', // Green for Low
-                '#ffc107', // Yellow for Medium
-                '#dc3545'  // Red for High
+                '#dc3545',  // High - Red
+                '#ffc107',  // Medium - Yellow
+                '#28a745'   // Low - Green
             ],
             borderWidth: 0
         }]
