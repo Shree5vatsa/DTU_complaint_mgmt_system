@@ -91,8 +91,11 @@ try {
             $hasPermission = ($complaint['department_id'] == $user['department_id']);
             break;
             
-        case 5: // Student - can only view their own complaints
-            $hasPermission = ($complaint['user_id'] == $user['id']);
+        case 5: // Student - can view their own complaints and other students' complaints
+            $stmt = $pdo->prepare("SELECT role_id FROM user WHERE id = ?");
+            $stmt->execute([$complaint['user_id']]);
+            $submitter_role = $stmt->fetchColumn();
+            $hasPermission = ($complaint['user_id'] == $user['id'] || $submitter_role == 5);
             break;
             
         default:
