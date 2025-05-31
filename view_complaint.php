@@ -41,7 +41,9 @@ try {
             u.name as submitted_by,
             u.email as submitted_by_email,
             CASE 
-                WHEN cc.category_name IN ('Library', 'Hostel', 'Harassment', 'Misbehavior', 'Ragging') THEN cc.category_name
+                WHEN cc.category_name = 'Library' THEN 'Library'
+                WHEN cc.category_name = 'Hostel' THEN 'Hostel'
+                WHEN cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging') THEN cc.category_name
                 ELSE d.name 
             END as department_name,
             cc.category_name,

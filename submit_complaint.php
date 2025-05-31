@@ -203,18 +203,34 @@ try {
                         }
                         // For library complaints
                         elseif ($category_info['category_name'] === 'Library') {
+                            // For Library complaints, we don't need to set department_id as it's handled in the view
+                            
+                            // Assign to Library admin if exists, otherwise to system admin
                             $stmt = $pdo->prepare("
                                 SELECT u.id 
                                 FROM user u
                                 JOIN roles r ON u.role_id = r.id
-                                WHERE u.department_id = (SELECT id FROM departments WHERE code = 'LIB')
-                                AND r.role_name = 'HOD'
+                                WHERE r.role_name = 'Library Admin'
                                 LIMIT 1
                             ");
                             $stmt->execute();
                             $assignee_id = $stmt->fetchColumn();
+                            
+                            if (!$assignee_id) {
+                                // If no Library Admin, assign to system admin
+                                $stmt = $pdo->prepare("
+                                    SELECT u.id 
+                                    FROM user u
+                                    JOIN roles r ON u.role_id = r.id
+                                    WHERE r.role_name = 'Administrator'
+                                    LIMIT 1
+                                ");
+                                $stmt->execute();
+                                $assignee_id = $stmt->fetchColumn();
+                            }
                         }
                         
+                        // Update assignee if found
                         if ($assignee_id) {
                             $stmt = $pdo->prepare("UPDATE complaints SET assigned_to = ? WHERE id = ?");
                             $stmt->execute([$assignee_id, $complaint_id]);
@@ -223,21 +239,20 @@ try {
                 }
                 
                 $pdo->commit();
-                header("Location: view_complaint.php?id=$complaint_id&success=1");
+                header("Location: view_complaint.php?id=" . urlencode($complaint_id) . "&success=created");
                 exit();
                 
             } catch (Exception $e) {
                 $pdo->rollBack();
-                error_log("Error submitting complaint: " . $e->getMessage());
-                $error = "Failed to submit complaint. Please try again.";
+                error_log($e->getMessage());
+                $error = "An error occurred while submitting your complaint. Please try again.";
             }
         }
     }
     
 } catch (PDOException $e) {
     error_log($e->getMessage());
-    header('Location: index.php?error=system_error');
-    exit();
+    $error = "A system error occurred. Please try again later.";
 }
 
 // Include header
