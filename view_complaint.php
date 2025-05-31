@@ -40,8 +40,10 @@ try {
             c.*,
             u.name as submitted_by,
             u.email as submitted_by_email,
-            d.name as department_name,
-            d.id as department_id,
+            CASE 
+                WHEN cc.category_name IN ('Library', 'Hostel', 'Harassment', 'Misbehavior', 'Ragging') THEN cc.category_name
+                ELSE d.name 
+            END as department_name,
             cc.category_name,
             cs.name as subcategory_name,
             cst.status_name,
@@ -335,6 +337,12 @@ include 'includes/header.php';
                 <span class="info-label">Category:</span>
                 <span class="info-value"><?php echo htmlspecialchars($complaint['category_name']); ?></span>
             </div>
+            <?php if ($complaint['subcategory_name']): ?>
+            <div class="info-row">
+                <span class="info-label">Subcategory:</span>
+                <span class="info-value"><?php echo htmlspecialchars($complaint['subcategory_name']); ?></span>
+            </div>
+            <?php endif; ?>
             <div class="info-row">
                 <span class="info-label">Submitted By:</span>
                 <span class="info-value"><?php echo htmlspecialchars($complaint['submitted_by']); ?></span>

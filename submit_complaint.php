@@ -201,6 +201,19 @@ try {
                             $stmt->execute();
                             $assignee_id = $stmt->fetchColumn();
                         }
+                        // For library complaints
+                        elseif ($category_info['category_name'] === 'Library') {
+                            $stmt = $pdo->prepare("
+                                SELECT u.id 
+                                FROM user u
+                                JOIN roles r ON u.role_id = r.id
+                                WHERE u.department_id = (SELECT id FROM departments WHERE code = 'LIB')
+                                AND r.role_name = 'HOD'
+                                LIMIT 1
+                            ");
+                            $stmt->execute();
+                            $assignee_id = $stmt->fetchColumn();
+                        }
                         
                         if ($assignee_id) {
                             $stmt = $pdo->prepare("UPDATE complaints SET assigned_to = ? WHERE id = ?");

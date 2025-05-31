@@ -39,8 +39,10 @@ try {
         SELECT 
             c.*,
             u.name as submitted_by,
-            d.name as department_name,
-            d.code as department_code,
+            CASE 
+                WHEN cc.category_name IN ('Library', 'Hostel', 'Harassment', 'Misbehavior', 'Ragging') THEN cc.category_name
+                ELSE d.name 
+            END as department_name,
             cc.category_name,
             cs.name as subcategory_name,
             cst.status_name,
