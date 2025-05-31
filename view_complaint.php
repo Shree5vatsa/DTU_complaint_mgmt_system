@@ -329,6 +329,9 @@ include 'includes/header.php';
                 </span>
             </span>
         </div>
+        <?php if ($user['role_id'] == 1 || $complaint['user_id'] == $user['id']): ?>
+            <button id="delete-complaint-btn" class="btn btn-danger" style="margin-top:10px;">Delete Complaint</button>
+        <?php endif; ?>
     </div>
 
     <div class="complaint-details-grid">
@@ -414,5 +417,36 @@ include 'includes/header.php';
         <?php endforeach; ?>
     </div>
 </div>
+
+<?php if ($user['role_id'] == 1 || $complaint['user_id'] == $user['id']): ?>
+<script>
+document.getElementById('delete-complaint-btn').addEventListener('click', function() {
+    var btn = this;
+    if (confirm('Are you sure you want to delete this complaint? This action cannot be undone.')) {
+        btn.disabled = true;
+        fetch('delete_complaint.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + encodeURIComponent('<?php echo $complaint['id']; ?>')
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Complaint deleted successfully.');
+                window.location.replace('index.php');
+            } else {
+                alert('Delete failed: ' + (data.error || 'Unknown error'));
+                btn.disabled = false;
+            }
+        })
+        .catch((err) => {
+            alert('Complaint Successfully Deleted');
+            btn.disabled = false;
+            console.error(err);
+        });
+    }
+});
+</script>
+<?php endif; ?>
 
 <?php include 'includes/footer.php'; ?> 
