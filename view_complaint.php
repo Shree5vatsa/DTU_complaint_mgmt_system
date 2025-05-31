@@ -47,6 +47,7 @@ try {
                 ELSE d.name 
             END as department_name,
             cc.category_name,
+            cc.department_id,
             cs.name as subcategory_name,
             cst.status_name,
             pl.level_name as priority_name,
@@ -95,12 +96,14 @@ try {
                 
             case 2: // HOD - can see department complaints and their own
                 $hasPermission = ($complaint['department_id'] && $complaint['department_id'] == $user['department_id']) || 
-                               ($complaint['user_id'] == $user['id']);
+                               ($complaint['user_id'] == $user['id']) ||
+                               in_array($complaint['category_name'], ['Library', 'Harassment', 'Misbehavior', 'Ragging']);
                 break;
                 
             case 3: // Warden - can see hostel complaints and their own
                 $hasPermission = ($complaint['category_name'] == 'Hostel') || 
-                               ($complaint['user_id'] == $user['id']);
+                               ($complaint['user_id'] == $user['id']) ||
+                               in_array($complaint['category_name'], ['Library', 'Harassment', 'Misbehavior', 'Ragging']);
                 break;
                 
             case 4: // Teacher - can see department academic complaints from students and their own
@@ -117,7 +120,7 @@ try {
                 $stmt = $pdo->prepare("
                     SELECT d.code 
                     FROM complaint_categories cc
-                    JOIN departments d ON cc.department_id = d.id
+                    LEFT JOIN departments d ON cc.department_id = d.id
                     WHERE cc.id = ?
                 ");
                 $stmt->execute([$complaint['category_id']]);
@@ -144,7 +147,7 @@ try {
                     // Can view their own complaints
                     ($complaint['user_id'] == $user['id']) ||
                     // Can view special categories
-                    in_array($complaint['category_name'], $public_categories);
+                    in_array($complaint['category_name'], ['Library', 'Harassment', 'Misbehavior', 'Ragging']);
                 break;
                 
             case 5: // Student - can see all student complaints and special categories

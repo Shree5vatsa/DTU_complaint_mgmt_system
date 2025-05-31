@@ -39,10 +39,34 @@ try {
     $sql = "SELECT c.* FROM complaint_categories c WHERE 1=1";
     $params = [];
     
-    // Students should see Academic category of their department and special categories
-    if ($user['role_name'] === 'Student' && $user['department_id']) {
-        $sql .= " AND (c.department_id = ? OR c.category_name IN ('Harassment', 'Misbehavior', 'Ragging', 'Hostel', 'Library', 'Other'))";
-        $params[] = $user['department_id'];
+    // Handle category visibility based on user role
+    switch ($user['role_name']) {
+        case 'Student':
+            // Students see their department's academic category and special categories
+            $sql .= " AND (c.department_id = ? OR c.category_name IN ('Harassment', 'Misbehavior', 'Ragging', 'Hostel', 'Library', 'Other'))";
+            $params[] = $user['department_id'];
+            break;
+            
+        case 'HOD':
+            // HODs see their department category and special categories
+            $sql .= " AND (c.department_id = ? OR c.category_name IN ('Harassment', 'Misbehavior', 'Ragging', 'Library', 'Other'))";
+            $params[] = $user['department_id'];
+            break;
+            
+        case 'Teacher':
+            // Teachers see their department category and special categories
+            $sql .= " AND (c.department_id = ? OR c.category_name IN ('Harassment', 'Misbehavior', 'Ragging', 'Library', 'Other'))";
+            $params[] = $user['department_id'];
+            break;
+            
+        case 'Warden':
+            // Wardens see hostel category and special categories
+            $sql .= " AND (c.category_name IN ('Hostel', 'Harassment', 'Misbehavior', 'Ragging', 'Library', 'Other'))";
+            break;
+            
+        default:
+            // Administrators and others see all categories
+            break;
     }
     
     $sql .= " ORDER BY CASE WHEN c.category_name = 'Other' THEN 1 ELSE 0 END, c.category_name";
@@ -86,29 +110,53 @@ try {
                 
                 // For HOD and Teacher roles, automatically set their department's category
                 if (in_array($user['role_name'], ['HOD', 'Teacher']) && $user['department_id']) {
+                    // Get the selected category info
                     $stmt = $pdo->prepare("
-                        SELECT id FROM complaint_categories 
-                        WHERE department_id = ?
-                        LIMIT 1
+                        SELECT category_name 
+                        FROM complaint_categories 
+                        WHERE id = ?
                     ");
-                    $stmt->execute([$user['department_id']]);
-                    $dept_category = $stmt->fetchColumn();
-                    if ($dept_category) {
-                        $category_id = $dept_category;
+                    $stmt->execute([$category_id]);
+                    $selected_category = $stmt->fetchColumn();
+                    
+                    // Only override if it's not a special category
+                    if (!in_array($selected_category, ['Library', 'Harassment', 'Misbehavior', 'Ragging', 'Other'])) {
+                        $stmt = $pdo->prepare("
+                            SELECT id FROM complaint_categories 
+                            WHERE department_id = ?
+                            LIMIT 1
+                        ");
+                        $stmt->execute([$user['department_id']]);
+                        $dept_category = $stmt->fetchColumn();
+                        if ($dept_category) {
+                            $category_id = $dept_category;
+                        }
                     }
                 }
                 
                 // For Warden role, automatically set Hostel category
                 if ($user['role_name'] === 'Warden') {
+                    // Get the selected category info
                     $stmt = $pdo->prepare("
-                        SELECT id FROM complaint_categories 
-                        WHERE category_name = 'Hostel'
-                        LIMIT 1
+                        SELECT category_name 
+                        FROM complaint_categories 
+                        WHERE id = ?
                     ");
-                    $stmt->execute();
-                    $hostel_category = $stmt->fetchColumn();
-                    if ($hostel_category) {
-                        $category_id = $hostel_category;
+                    $stmt->execute([$category_id]);
+                    $selected_category = $stmt->fetchColumn();
+                    
+                    // Only override if it's not a special category
+                    if (!in_array($selected_category, ['Library', 'Harassment', 'Misbehavior', 'Ragging', 'Other'])) {
+                        $stmt = $pdo->prepare("
+                            SELECT id FROM complaint_categories 
+                            WHERE category_name = 'Hostel'
+                            LIMIT 1
+                        ");
+                        $stmt->execute();
+                        $hostel_category = $stmt->fetchColumn();
+                        if ($hostel_category) {
+                            $category_id = $hostel_category;
+                        }
                     }
                 }
                 
@@ -228,6 +276,14 @@ try {
                                 $stmt->execute();
                                 $assignee_id = $stmt->fetchColumn();
                             }
+                            
+                            // Set department_id to NULL for Library complaints
+                            $stmt = $pdo->prepare("
+                                UPDATE complaints 
+                                SET department_id = NULL 
+                                WHERE id = ?
+                            ");
+                            $stmt->execute([$complaint_id]);
                         }
                         
                         // Update assignee if found
