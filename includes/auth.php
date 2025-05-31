@@ -132,8 +132,48 @@ class Auth {
                     return true;
                     
                 case 'update_complaint_status':
-                    // Admin, HOD, Warden can update status
-                    return in_array($user['role_name'], ['Administrator', 'HOD', 'Warden']);
+                    // Get complaint ID from URL if available
+                    $complaint_id = $_GET['id'] ?? null;
+                    if (!$complaint_id) {
+                        return false;
+                    }
+                    
+                    // Check if user is the complaint creator
+                    $stmt = $this->pdo->prepare("SELECT user_id, category_name FROM complaints c JOIN complaint_categories cc ON c.category_id = cc.id WHERE c.id = ?");
+                    $stmt->execute([$complaint_id]);
+                    $complaint = $stmt->fetch();
+                    
+                    if ($complaint['user_id'] == $user['id']) {
+                        return false; // Complaint creator cannot update status
+                    }
+                    
+                    // Admin can update any complaint
+                    if ($user['role_name'] === 'Administrator') {
+                        return true;
+                    }
+                    
+                    // HOD and Warden can update harassment, misbehavior, ragging complaints
+                    if (in_array($user['role_name'], ['HOD', 'Warden']) && 
+                        in_array($complaint['category_name'], ['Harassment', 'Misbehavior', 'Ragging'])) {
+                        return true;
+                    }
+                    
+                    // Teachers can only update academic complaints from their department's students
+                    if ($user['role_name'] === 'Teacher') {
+                        $stmt = $this->pdo->prepare("
+                            SELECT 1 FROM complaints c 
+                            JOIN complaint_categories cc ON c.category_id = cc.id 
+                            JOIN user submitter ON c.user_id = submitter.id
+                            WHERE c.id = ? 
+                            AND cc.department_id = ? 
+                            AND submitter.role_id = 5 
+                            AND cc.category_name = 'Academic'
+                        ");
+                        $stmt->execute([$complaint_id, $user['department_id']]);
+                        return (bool)$stmt->fetchColumn();
+                    }
+                    
+                    return false;
                     
                 case 'manage_complaints':
                     // Admin, HOD, Warden can manage complaints

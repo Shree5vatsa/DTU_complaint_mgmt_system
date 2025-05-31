@@ -50,7 +50,7 @@ try {
         FROM complaints c
         JOIN user u ON c.user_id = u.id
         JOIN complaint_categories cc ON c.category_id = cc.id
-        JOIN departments d ON cc.department_id = d.id
+        LEFT JOIN departments d ON cc.department_id = d.id
         LEFT JOIN complaint_subcategories cs ON c.sub_category_id = cs.id
         JOIN complaint_status_types cst ON c.status_id = cst.id
         JOIN priority_levels pl ON c.priority_id = pl.id
@@ -74,37 +74,144 @@ try {
     
     // Check if user has permission to view this complaint
     $hasPermission = false;
-    switch ($user['role_id']) {
-        case 1: // Administrator - can view all complaints
-            $hasPermission = true;
-            break;
-            
-        case 2: // HOD - can view department complaints
-            $hasPermission = ($complaint['department_id'] == $user['department_id']);
-            break;
-            
-        case 3: // Warden - can view hostel complaints
-            $hasPermission = ($complaint['category_name'] == 'Hostel');
-            break;
-            
-        case 4: // Teacher - can view department complaints
-            $hasPermission = ($complaint['department_id'] == $user['department_id']);
-            break;
-            
-        case 5: // Student - can view their own complaints and other students' complaints
-            $stmt = $pdo->prepare("SELECT role_id FROM user WHERE id = ?");
-            $stmt->execute([$complaint['user_id']]);
-            $submitter_role = $stmt->fetchColumn();
-            $hasPermission = ($complaint['user_id'] == $user['id'] || $submitter_role == 5);
-            break;
-            
-        default:
-            $hasPermission = ($complaint['user_id'] == $user['id']);
+    
+    // Special categories that everyone can view
+    $public_categories = ['Harassment', 'Misbehavior', 'Ragging'];
+    
+    // First check if it's a special category - these are visible to everyone
+    if (in_array($complaint['category_name'], $public_categories)) {
+        $hasPermission = true;
+    } 
+    // Then check role-specific permissions
+    else {
+        switch ($user['role_id']) {
+            case 1: // Administrator - can view all complaints
+                $hasPermission = true;
+                break;
+                
+            case 2: // HOD - can see department complaints and their own
+                $hasPermission = ($complaint['department_id'] && $complaint['department_id'] == $user['department_id']) || 
+                               ($complaint['user_id'] == $user['id']);
+                break;
+                
+            case 3: // Warden - can see hostel complaints and their own
+                $hasPermission = ($complaint['category_name'] == 'Hostel') || 
+                               ($complaint['user_id'] == $user['id']);
+                break;
+                
+            case 4: // Teacher - can see department academic complaints from students and their own
+                // Check if complaint was submitted by a student
+                $stmt = $pdo->prepare("
+                    SELECT 1 FROM user 
+                    WHERE id = ? AND role_id = 5
+                    LIMIT 1
+                ");
+                $stmt->execute([$complaint['user_id']]);
+                $isStudentComplaint = $stmt->fetchColumn() > 0;
+
+                // Get the department code for the complaint's category
+                $stmt = $pdo->prepare("
+                    SELECT d.code 
+                    FROM complaint_categories cc
+                    JOIN departments d ON cc.department_id = d.id
+                    WHERE cc.id = ?
+                ");
+                $stmt->execute([$complaint['category_id']]);
+                $departmentCode = $stmt->fetchColumn();
+
+                // Check if complaint is from a teacher in same department
+                $stmt = $pdo->prepare("
+                    SELECT 1 FROM user 
+                    WHERE id = ? AND role_id = 4 AND department_id = ?
+                    LIMIT 1
+                ");
+                $stmt->execute([$complaint['user_id'], $user['department_id']]);
+                $isTeacherFromSameDept = $stmt->fetchColumn() > 0;
+                
+                $hasPermission = (
+                    // Can view academic complaints from their department
+                    ($complaint['department_id'] == $user['department_id'] && 
+                     $departmentCode && 
+                     $complaint['subcategory_name'] == 'Academic' && 
+                     $isStudentComplaint)
+                    ) || 
+                    // Can view complaints from teachers in same department
+                    $isTeacherFromSameDept ||
+                    // Can view their own complaints
+                    ($complaint['user_id'] == $user['id']) ||
+                    // Can view special categories
+                    in_array($complaint['category_name'], $public_categories);
+                break;
+                
+            case 5: // Student - can see their own complaints
+                $hasPermission = ($complaint['user_id'] == $user['id']);
+                break;
+                
+            default:
+                // For any other role, show only their own complaints
+                $hasPermission = ($complaint['user_id'] == $user['id']);
+        }
     }
     
     if (!$hasPermission) {
         header('Location: index.php?error=permission_denied');
         exit();
+    }
+    
+    // Check if user has permission to update status
+    $canUpdateStatus = false;
+    
+    // No user can update their own complaints
+    if ($complaint['user_id'] != $user['id']) {
+        switch ($user['role_id']) {
+            case 1: // Administrator - can update all complaints
+                $canUpdateStatus = true;
+                break;
+                
+            case 2: // HOD - can update department complaints and special categories
+                $canUpdateStatus = 
+                    // Department complaints
+                    ($complaint['department_id'] && $complaint['department_id'] == $user['department_id']) ||
+                    // Special categories
+                    in_array($complaint['category_name'], ['Harassment', 'Misbehavior', 'Ragging']);
+                break;
+                
+            case 3: // Warden - can update hostel complaints and special categories
+                $canUpdateStatus = 
+                    $complaint['category_name'] == 'Hostel' ||
+                    in_array($complaint['category_name'], ['Harassment', 'Misbehavior', 'Ragging']);
+                break;
+                
+            case 4: // Teacher - can only update academic complaints from students in their department
+                // Get the department code for the complaint's category
+                $stmt = $pdo->prepare("
+                    SELECT d.code 
+                    FROM complaint_categories cc
+                    JOIN departments d ON cc.department_id = d.id
+                    WHERE cc.id = ?
+                ");
+                $stmt->execute([$complaint['category_id']]);
+                $departmentCode = $stmt->fetchColumn();
+                
+                // Check if complaint was submitted by a student
+                $stmt = $pdo->prepare("
+                    SELECT 1 FROM user 
+                    WHERE id = ? AND role_id = 5
+                    LIMIT 1
+                ");
+                $stmt->execute([$complaint['user_id']]);
+                $isStudentComplaint = $stmt->fetchColumn() > 0;
+                
+                $canUpdateStatus = 
+                    $complaint['department_id'] == $user['department_id'] && 
+                    $departmentCode && // Ensure it's a department category
+                    $complaint['subcategory_name'] == 'Academic' &&
+                    $isStudentComplaint;
+                break;
+                
+            default: // Students and others cannot update any complaints
+                $canUpdateStatus = false;
+        }
     }
     
     // Get complaint history
@@ -124,54 +231,48 @@ try {
     
     // Handle status update
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // First check if user has permission to view this complaint
-        if (!$hasPermission) {
-            header("Location: index.php?error=permission_denied");
+        // Check if user has permission to update this complaint
+        if (!$canUpdateStatus) {
+            header("Location: view_complaint.php?id=$complaint_id&error=permission_denied");
             exit();
         }
         
-        // Then check if user has permission to update status
-        if ($auth->hasPermission('update_complaint_status')) {
-            $new_status = $_POST['status_id'];
-            $comments = $_POST['comments'];
+        $new_status = $_POST['status_id'];
+        $comments = $_POST['comments'];
+        
+        // Start transaction
+        $pdo->beginTransaction();
+        
+        try {
+            // Update complaint status and last_updated timestamp
+            $stmt = $pdo->prepare("UPDATE complaints SET status_id = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->execute([$new_status, $complaint_id]);
             
-            // Start transaction
-            $pdo->beginTransaction();
+            // Add to history
+            $stmt = $pdo->prepare("
+                INSERT INTO complaint_history (complaint_id, status_id, comments, updated_by, timestamp)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ");
+            $stmt->execute([$complaint_id, $new_status, $comments, $user['id']]);
             
-            try {
-                // Update complaint status and last_updated timestamp
-                $stmt = $pdo->prepare("UPDATE complaints SET status_id = ?, last_updated = CURRENT_TIMESTAMP WHERE id = ?");
-                $stmt->execute([$new_status, $complaint_id]);
-                
-                // Add to history
+            // If resolved, update resolution comments
+            if ($new_status == 3) { // Assuming 3 is 'resolved' status
                 $stmt = $pdo->prepare("
-                    INSERT INTO complaint_history (complaint_id, status_id, comments, updated_by, timestamp)
-                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    INSERT INTO complaint_details (complaint_id, resolution_comments)
+                    VALUES (?, ?)
+                    ON DUPLICATE KEY UPDATE resolution_comments = ?
                 ");
-                $stmt->execute([$complaint_id, $new_status, $comments, $user['id']]);
-                
-                // If resolved, update resolution comments
-                if ($new_status == 3) { // Assuming 3 is 'resolved' status
-                    $stmt = $pdo->prepare("
-                        INSERT INTO complaint_details (complaint_id, resolution_comments)
-                        VALUES (?, ?)
-                        ON DUPLICATE KEY UPDATE resolution_comments = ?
-                    ");
-                    $stmt->execute([$complaint_id, $comments, $comments]);
-                }
-                
-                $pdo->commit();
-                header("Location: view_complaint.php?id=$complaint_id&success=status_updated");
-                exit();
-                
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                error_log("Error updating complaint status: " . $e->getMessage());
-                header("Location: view_complaint.php?id=$complaint_id&error=update_failed");
-                exit();
+                $stmt->execute([$complaint_id, $comments, $comments]);
             }
-        } else {
-            header("Location: view_complaint.php?id=$complaint_id&error=permission_denied");
+            
+            $pdo->commit();
+            header("Location: view_complaint.php?id=$complaint_id&success=status_updated");
+            exit();
+            
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            error_log("Error updating complaint status: " . $e->getMessage());
+            header("Location: view_complaint.php?id=$complaint_id&error=update_failed");
             exit();
         }
     }
@@ -233,7 +334,7 @@ include 'includes/header.php';
         </div>
     </div>
 
-    <?php if ($auth->hasPermission('update_complaint_status')): ?>
+    <?php if ($canUpdateStatus): ?>
     <div class="update-status">
         <h2>Update Status</h2>
         <form class="status-form" method="POST" action="">

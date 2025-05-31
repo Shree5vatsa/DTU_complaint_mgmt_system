@@ -40,15 +40,17 @@ try {
             c.*,
             u.name as submitted_by,
             d.name as department_name,
+            d.code as department_code,
             cc.category_name,
             cs.name as subcategory_name,
             cst.status_name,
             pl.level_name as priority_name,
-            assigned.name as assigned_to_name
+            assigned.name as assigned_to_name,
+            u.role_id as submitter_role_id
         FROM complaints c
         JOIN user u ON c.user_id = u.id
         JOIN complaint_categories cc ON c.category_id = cc.id
-        JOIN departments d ON cc.department_id = d.id
+        LEFT JOIN departments d ON cc.department_id = d.id
         LEFT JOIN complaint_subcategories cs ON c.sub_category_id = cs.id
         JOIN complaint_status_types cst ON c.status_id = cst.id
         JOIN priority_levels pl ON c.priority_id = pl.id
@@ -61,44 +63,49 @@ try {
         case 1: // Administrator - can see all complaints
             break;
             
-        case 2: // HOD - can see department complaints and complaints submitted by department students/teachers
-            $sql .= " AND (cc.department_id = ? OR c.user_id = ?)";
+        case 2: // HOD - can see department complaints and special categories
+            $sql .= " AND (cc.department_id = ? OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging') OR c.user_id = ?)";
             $params[] = $user['department_id'];
             $params[] = $user['id'];
             break;
             
-        case 3: // Warden - can see hostel complaints and complaints submitted by hostel students
-            $sql .= " AND (cc.category_name = 'Hostel' OR c.user_id = ?)";
+        case 3: // Warden - can see hostel complaints and special categories
+            $sql .= " AND (cc.category_name = 'Hostel' OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging') OR c.user_id = ?)";
             $params[] = $user['id'];
             break;
             
-        case 4: // Teacher - can see department complaints and complaints submitted by department students
-            $sql .= " AND (cc.department_id = ? OR EXISTS (
-                SELECT 1 FROM user submitter 
-                WHERE submitter.id = c.user_id 
-                AND submitter.department_id = ?
-                AND submitter.role_id = 5
-            ))";
+        case 4: // Teacher - can see department complaints and special categories
+            // Get the teacher's department code
+            $stmt = $pdo->prepare("SELECT d.code FROM departments d WHERE d.id = ?");
+            $stmt->execute([$user['department_id']]);
+            $dept_code = $stmt->fetchColumn();
+            
+            $sql .= " AND (
+                (cc.category_name = ? AND (
+                    (cs.name = 'Academic' AND u.role_id = 5) OR  /* Student academic complaints */
+                    (u.role_id = 4 AND u.department_id = ?)      /* Teacher complaints from same department */
+                )) OR 
+                cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging') OR 
+                c.user_id = ?
+            )";
+            $params[] = $dept_code;
             $params[] = $user['department_id'];
-            $params[] = $user['department_id'];
+            $params[] = $user['id'];
             break;
             
-        case 5: // Student - can see their own complaints and other students' complaints
-            $sql .= " AND (c.user_id = ? OR EXISTS (
-                SELECT 1 FROM user submitter 
-                WHERE submitter.id = c.user_id 
-                AND submitter.role_id = 5
-            ))";
+        case 5: // Student - can see their own complaints and special categories
+            $sql .= " AND (c.user_id = ? OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging'))";
             $params[] = $user['id'];
             break;
             
         default:
-            // For any other role, show only their own complaints
-            $sql .= " AND c.user_id = ?";
+            // For any other role, show only their own complaints and special categories
+            $sql .= " AND (c.user_id = ? OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging'))";
             $params[] = $user['id'];
     }
     
-    $sql .= " ORDER BY c.date_created DESC LIMIT 50";
+    // Order by most recent first
+    $sql .= " ORDER BY c.date_created DESC";
     
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -112,8 +119,11 @@ try {
             SUM(CASE WHEN cst.status_name = 'in_progress' THEN 1 ELSE 0 END) as in_progress,
             SUM(CASE WHEN cst.status_name = 'resolved' THEN 1 ELSE 0 END) as resolved
         FROM complaints c
+        JOIN user u ON c.user_id = u.id
         JOIN complaint_status_types cst ON c.status_id = cst.id
         JOIN complaint_categories cc ON c.category_id = cc.id
+        LEFT JOIN complaint_subcategories cs ON c.sub_category_id = cs.id
+        LEFT JOIN departments d ON cc.department_id = d.id
         WHERE 1=1
     ";
     
@@ -122,36 +132,35 @@ try {
         case 1: // Administrator - can see all complaints
             break;
             
-        case 2: // HOD - can see department complaints and complaints submitted by department students/teachers
-            $stats_sql .= " AND (cc.department_id = ? OR c.user_id = ?)";
+        case 2: // HOD - can see department complaints and special categories
+            $stats_sql .= " AND (cc.department_id = ? OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging') OR c.user_id = ?)";
             break;
             
-        case 3: // Warden - can see hostel complaints and complaints submitted by hostel students
-            $stats_sql .= " AND (cc.category_name = 'Hostel' OR c.user_id = ?)";
+        case 3: // Warden - can see hostel complaints and special categories
+            $stats_sql .= " AND (cc.category_name = 'Hostel' OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging') OR c.user_id = ?)";
             break;
             
-        case 4: // Teacher - can see department complaints and complaints submitted by department students
-            $stats_sql .= " AND (cc.department_id = ? OR EXISTS (
-                SELECT 1 FROM user submitter 
-                WHERE submitter.id = c.user_id 
-                AND submitter.department_id = ?
-                AND submitter.role_id = 5
-            ))";
+        case 4: // Teacher - can see department complaints and special categories
+            $stats_sql .= " AND (
+                (cc.category_name = ? AND (
+                    (cs.name = 'Academic' AND u.role_id = 5) OR  /* Student academic complaints */
+                    (u.role_id = 4 AND u.department_id = ?)      /* Teacher complaints from same department */
+                )) OR 
+                cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging') OR 
+                c.user_id = ?
+            )";
             break;
             
-        case 5: // Student - can see their own complaints and other students' complaints
-            $stats_sql .= " AND (c.user_id = ? OR EXISTS (
-                SELECT 1 FROM user submitter 
-                WHERE submitter.id = c.user_id 
-                AND submitter.role_id = 5
-            ))";
+        case 5: // Student - can see their own complaints and special categories
+            $stats_sql .= " AND (c.user_id = ? OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging'))";
             break;
             
         default:
-            // For any other role, show only their own complaints
-            $stats_sql .= " AND c.user_id = ?";
+            // For any other role, show only their own complaints and special categories
+            $stats_sql .= " AND (c.user_id = ? OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging'))";
     }
     
+    // Use the same parameters as the main query
     $stmt = $pdo->prepare($stats_sql);
     $stmt->execute($params);
     $stats = $stmt->fetch(PDO::FETCH_ASSOC);

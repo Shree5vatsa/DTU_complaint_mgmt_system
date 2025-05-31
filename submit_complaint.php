@@ -35,15 +35,20 @@ try {
     $stmt->execute();
     $departments = $stmt->fetchAll();
     
-    // Get only main categories (COE, ECE, CE, Library, Hostel, Campus Security)
-    $stmt = $pdo->prepare("
-        SELECT c.* 
-        FROM complaint_categories c 
-        ORDER BY 
-            CASE WHEN c.category_name = 'Other' THEN 1 ELSE 0 END,
-            c.category_name
-    ");
-    $stmt->execute();
+    // Get categories based on user role
+    $sql = "SELECT c.* FROM complaint_categories c WHERE 1=1";
+    $params = [];
+    
+    // Students should see Academic category of their department and special categories
+    if ($user['role_name'] === 'Student' && $user['department_id']) {
+        $sql .= " AND (c.department_id = ? OR c.category_name IN ('Harassment', 'Misbehavior', 'Ragging', 'Hostel', 'Library', 'Other'))";
+        $params[] = $user['department_id'];
+    }
+    
+    $sql .= " ORDER BY CASE WHEN c.category_name = 'Other' THEN 1 ELSE 0 END, c.category_name";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     $categories = $stmt->fetchAll();
     
     // Get priority levels
@@ -142,31 +147,64 @@ try {
                 
                 // Auto-assign complaint based on category
                 if ($category_id) {
+                    // Get category information
                     $stmt = $pdo->prepare("
-                        SELECT cc.department_id, d.name as dept_name
+                        SELECT cc.department_id, cc.category_name, d.name as dept_name
                         FROM complaint_categories cc
-                        JOIN departments d ON cc.department_id = d.id
+                        LEFT JOIN departments d ON cc.department_id = d.id
                         WHERE cc.id = ?
                     ");
                     $stmt->execute([$category_id]);
-                    $dept_info = $stmt->fetch();
+                    $category_info = $stmt->fetch();
                     
-                    if ($dept_info) {
-                        // Find HOD or appropriate assignee
-                        $stmt = $pdo->prepare("
-                            SELECT u.id 
-                            FROM user u
-                            JOIN roles r ON u.role_id = r.id
-                            WHERE u.department_id = ? 
-                            AND r.role_name IN ('HOD', 'Warden')
-                            LIMIT 1
-                        ");
-                        $stmt->execute([$dept_info['department_id']]);
-                        $assignee = $stmt->fetchColumn();
+                    if ($category_info) {
+                        $assignee_id = null;
                         
-                        if ($assignee) {
+                        // For special categories (Harassment, Misbehavior, Ragging)
+                        if (in_array($category_info['category_name'], ['Harassment', 'Misbehavior', 'Ragging'])) {
+                            // Assign to Warden if it's a hostel student, otherwise to HOD
+                            if ($user['department_id'] && $user['role_name'] === 'Student') {
+                                $stmt = $pdo->prepare("
+                                    SELECT u.id 
+                                    FROM user u
+                                    JOIN roles r ON u.role_id = r.id
+                                    WHERE u.department_id = ? 
+                                    AND r.role_name = 'HOD'
+                                    LIMIT 1
+                                ");
+                                $stmt->execute([$user['department_id']]);
+                                $assignee_id = $stmt->fetchColumn();
+                            }
+                        }
+                        // For department-specific complaints
+                        elseif ($category_info['department_id']) {
+                            $stmt = $pdo->prepare("
+                                SELECT u.id 
+                                FROM user u
+                                JOIN roles r ON u.role_id = r.id
+                                WHERE u.department_id = ? 
+                                AND r.role_name = 'HOD'
+                                LIMIT 1
+                            ");
+                            $stmt->execute([$category_info['department_id']]);
+                            $assignee_id = $stmt->fetchColumn();
+                        }
+                        // For hostel complaints
+                        elseif ($category_info['category_name'] === 'Hostel') {
+                            $stmt = $pdo->prepare("
+                                SELECT u.id 
+                                FROM user u
+                                JOIN roles r ON u.role_id = r.id
+                                WHERE r.role_name = 'Warden'
+                                LIMIT 1
+                            ");
+                            $stmt->execute();
+                            $assignee_id = $stmt->fetchColumn();
+                        }
+                        
+                        if ($assignee_id) {
                             $stmt = $pdo->prepare("UPDATE complaints SET assigned_to = ? WHERE id = ?");
-                            $stmt->execute([$assignee, $complaint_id]);
+                            $stmt->execute([$assignee_id, $complaint_id]);
                         }
                     }
                 }
