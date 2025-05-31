@@ -93,8 +93,12 @@ try {
             $params[] = $user['id'];
             break;
             
-        case 5: // Student - can see their own complaints and special categories
-            $sql .= " AND (c.user_id = ? OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging'))";
+        case 5: // Student - can see all student complaints and special categories
+            $sql .= " AND (
+                (u.role_id = 5) OR  /* All student complaints */
+                cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging') OR
+                c.user_id = ?  /* Their own complaints */
+            )";
             $params[] = $user['id'];
             break;
             
@@ -151,8 +155,12 @@ try {
             )";
             break;
             
-        case 5: // Student - can see their own complaints and special categories
-            $stats_sql .= " AND (c.user_id = ? OR cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging'))";
+        case 5: // Student - can see all student complaints and special categories
+            $stats_sql .= " AND (
+                (u.role_id = 5) OR  /* All student complaints */
+                cc.category_name IN ('Harassment', 'Misbehavior', 'Ragging') OR
+                c.user_id = ?  /* Their own complaints */
+            )";
             break;
             
         default:

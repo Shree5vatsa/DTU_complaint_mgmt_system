@@ -5,11 +5,26 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 ini_set('error_log', __DIR__ . '/../logs/error.log');
 
-// Database configuration
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'dtu_portal');  // Changed to match the SQL file name
-define('DB_USER', 'root');  // Change this if you have a different MySQL username
-define('DB_PASS', '');      // Change this if you have set a MySQL password
+// Database Configuration
+if (!defined('DB_HOST')) {
+    define('DB_HOST', 'localhost');
+}
+
+if (!defined('DB_NAME')) {
+    define('DB_NAME', 'dtu_portal');
+}
+
+if (!defined('DB_USER')) {
+    define('DB_USER', 'root');
+}
+
+if (!defined('DB_PASS')) {
+    define('DB_PASS', '');
+}
+
+if (!defined('DB_CHARSET')) {
+    define('DB_CHARSET', 'utf8mb4');
+}
 
 // Application settings
 define('SITE_NAME', 'DTU Complaint Portal');

@@ -30,6 +30,9 @@ if (empty($complaint_id)) {
     exit();
 }
 
+// Define categories that are visible to all users
+$public_categories = ['Harassment', 'Misbehavior', 'Ragging'];
+
 try {
     // Get complaint details
     $stmt = $pdo->prepare("
@@ -74,9 +77,6 @@ try {
     
     // Check if user has permission to view this complaint
     $hasPermission = false;
-    
-    // Special categories that everyone can view
-    $public_categories = ['Harassment', 'Misbehavior', 'Ragging'];
     
     // First check if it's a special category - these are visible to everyone
     if (in_array($complaint['category_name'], $public_categories)) {
@@ -143,13 +143,30 @@ try {
                     in_array($complaint['category_name'], $public_categories);
                 break;
                 
-            case 5: // Student - can see their own complaints
-                $hasPermission = ($complaint['user_id'] == $user['id']);
+            case 5: // Student - can see all student complaints and special categories
+                // Check if complaint was submitted by a student
+                $stmt = $pdo->prepare("
+                    SELECT 1 FROM user 
+                    WHERE id = ? AND role_id = 5
+                    LIMIT 1
+                ");
+                $stmt->execute([$complaint['user_id']]);
+                $isStudentComplaint = $stmt->fetchColumn() > 0;
+
+                $hasPermission = (
+                    $isStudentComplaint || // Can see all student complaints
+                    $complaint['user_id'] == $user['id'] || // Can see their own complaints
+                    in_array($complaint['category_name'], $public_categories) // Can see special categories
+                );
                 break;
                 
             default:
-                // For any other role, show only their own complaints
-                $hasPermission = ($complaint['user_id'] == $user['id']);
+                // For any other role, show only their own complaints and special categories
+                $hasPermission = (
+                    $complaint['user_id'] == $user['id'] || 
+                    in_array($complaint['category_name'], $public_categories)
+                );
+                break;
         }
     }
     
@@ -207,6 +224,10 @@ try {
                     $departmentCode && // Ensure it's a department category
                     $complaint['subcategory_name'] == 'Academic' &&
                     $isStudentComplaint;
+                break;
+                
+            case 5: // Students cannot update any complaints
+                $canUpdateStatus = false;
                 break;
                 
             default: // Students and others cannot update any complaints

@@ -1,10 +1,5 @@
 <?php
-// Database configuration
-define('DB_HOST', 'localhost');
-define('DB_NAME', 'dtu_portal');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_CHARSET', 'utf8mb4');
+require_once __DIR__ . '/config.php';
 
 try {
     $pdo = new PDO(
