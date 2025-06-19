@@ -168,60 +168,22 @@ if ( ! is_php('5.4'))
 
 	$RTR =& load_class('Router', 'core', isset($routing) ? $routing : NULL);
 
-/*
- * ------------------------------------------------------
- *  Instantiate the output class
- * ------------------------------------------------------
- */
 	$OUT =& load_class('Output', 'core');
 
-/*
- * ------------------------------------------------------
- *	Is there a valid cache file? If so, we're done...
- * ------------------------------------------------------
- */
 	if ($EXT->call_hook('cache_override') === FALSE && $OUT->_display_cache($CFG, $URI) === TRUE)
 	{
 		exit;
 	}
 
-/*
- * -----------------------------------------------------
- * Load the security class for xss and csrf support
- * -----------------------------------------------------
- */
 	$SEC =& load_class('Security', 'core');
 
-/*
- * ------------------------------------------------------
- *  Load the Input class and sanitize globals
- * ------------------------------------------------------
- */
 	$IN	=& load_class('Input', 'core');
 
-/*
- * ------------------------------------------------------
- *  Load the Language class
- * ------------------------------------------------------
- */
 	$LANG =& load_class('Lang', 'core');
 
-/*
- * ------------------------------------------------------
- *  Load the app controller and local controller
- * ------------------------------------------------------
- *
- */
 	// Load the base controller class
 	require_once BASEPATH.'core/Controller.php';
 
-	/**
-	 * Reference to the CI_Controller method.
-	 *
-	 * Returns current CI instance object
-	 *
-	 * @return CI_Controller
-	 */
 	function &get_instance()
 	{
 		return CI_Controller::get_instance();
@@ -235,26 +197,6 @@ if ( ! is_php('5.4'))
 	// Set a mark point for benchmarking
 	$BM->mark('loading_time:_base_classes_end');
 
-/*
- * ------------------------------------------------------
- *  Sanity checks
- * ------------------------------------------------------
- *
- *  The Router class has already validated the request,
- *  leaving us with 3 options here:
- *
- *	1) an empty class name, if we reached the default
- *	   controller, but it didn't exist;
- *	2) a query string which doesn't go through a
- *	   file_exists() check
- *	3) a regular request for a non-existing page
- *
- *  We handle all of these as a 404 error.
- *
- *  Furthermore, none of the methods in the app controller
- *  or the loader class can be called via the URI, nor can
- *  controller methods that begin with an underscore.
- */
 
 	$e404 = FALSE;
 	$class = ucfirst($RTR->class);
@@ -281,17 +223,7 @@ if ( ! is_php('5.4'))
 		{
 			$e404 = TRUE;
 		}
-		/**
-		 * DO NOT CHANGE THIS, NOTHING ELSE WORKS!
-		 *
-		 * - method_exists() returns true for non-public methods, which passes the previous elseif
-		 * - is_callable() returns false for PHP 4-style constructors, even if there's a __construct()
-		 * - method_exists($class, '__construct') won't work because CI_Controller::__construct() is inherited
-		 * - People will only complain if this doesn't work, even though it is documented that it shouldn't.
-		 *
-		 * ReflectionMethod::isConstructor() is the ONLY reliable check,
-		 * knowing which method will be executed as a constructor.
-		 */
+		
 		elseif ( ! is_callable(array($class, $method)))
 		{
 			$reflection = new ReflectionMethod($class, $method);
@@ -358,60 +290,25 @@ if ( ! is_php('5.4'))
 		$params = array_slice($URI->rsegments, 2);
 	}
 
-/*
- * ------------------------------------------------------
- *  Is there a "pre_controller" hook?
- * ------------------------------------------------------
- */
 	$EXT->call_hook('pre_controller');
 
-/*
- * ------------------------------------------------------
- *  Instantiate the requested controller
- * ------------------------------------------------------
- */
 	// Mark a start point so we can benchmark the controller
 	$BM->mark('controller_execution_time_( '.$class.' / '.$method.' )_start');
 
 	$CI = new $class();
 
-/*
- * ------------------------------------------------------
- *  Is there a "post_controller_constructor" hook?
- * ------------------------------------------------------
- */
 	$EXT->call_hook('post_controller_constructor');
 
-/*
- * ------------------------------------------------------
- *  Call the requested method
- * ------------------------------------------------------
- */
 	call_user_func_array(array(&$CI, $method), $params);
 
 	// Mark a benchmark end point
 	$BM->mark('controller_execution_time_( '.$class.' / '.$method.' )_end');
 
-/*
- * ------------------------------------------------------
- *  Is there a "post_controller" hook?
- * ------------------------------------------------------
- */
 	$EXT->call_hook('post_controller');
 
-/*
- * ------------------------------------------------------
- *  Send the final rendered output to the browser
- * ------------------------------------------------------
- */
 	if ($EXT->call_hook('display_override') === FALSE)
 	{
 		$OUT->_display();
 	}
 
-/*
- * ------------------------------------------------------
- *  Is there a "post_system" hook?
- * ------------------------------------------------------
- */
 	$EXT->call_hook('post_system');

@@ -5,48 +5,19 @@ defined('BASEPATH') OR exit('No direct script access allowed');
 
 class CI_Hooks {
 
-	/**
-	 * Determines whether hooks are enabled
-	 *
-	 * @var	bool
-	 */
 	public $enabled = FALSE;
 
-	/**
-	 * List of all hooks set in config/hooks.php
-	 *
-	 * @var	array
-	 */
 	public $hooks =	array();
 
-	/**
-	 * Array with class objects to use hooks methods
-	 *
-	 * @var array
-	 */
 	protected $_objects = array();
 
-	/**
-	 * In progress flag
-	 *
-	 * Determines whether hook is in progress, used to prevent infinte loops
-	 *
-	 * @var	bool
-	 */
 	protected $_in_progress = FALSE;
 
-	/**
-	 * Class constructor
-	 *
-	 * @return	void
-	 */
 	public function __construct()
 	{
 		$CFG =& load_class('Config', 'core');
 		log_message('info', 'Hooks Class Initialized');
 
-		// If hooks are not enabled in the config file
-		// there is nothing else to do
 		if ($CFG->item('enable_hooks') === FALSE)
 		{
 			return;
@@ -73,18 +44,6 @@ class CI_Hooks {
 		$this->enabled = TRUE;
 	}
 
-	// --------------------------------------------------------------------
-
-	/**
-	 * Call Hook
-	 *
-	 * Calls a particular hook. Called by CodeIgniter.php.
-	 *
-	 * @uses	CI_Hooks::_run_hook()
-	 *
-	 * @param	string	$which	Hook name
-	 * @return	bool	TRUE on success or FALSE on failure
-	 */
 	public function call_hook($which = '')
 	{
 		if ( ! $this->enabled OR ! isset($this->hooks[$which]))
@@ -107,16 +66,6 @@ class CI_Hooks {
 		return TRUE;
 	}
 
-	// --------------------------------------------------------------------
-
-	/**
-	 * Run Hook
-	 *
-	 * Runs a particular hook
-	 *
-	 * @param	array	$data	Hook details
-	 * @return	bool	TRUE on success or FALSE on failure
-	 */
 	protected function _run_hook($data)
 	{
 		// Closures/lambda functions and array($object, 'method') callables
@@ -133,20 +82,12 @@ class CI_Hooks {
 			return FALSE;
 		}
 
-		// -----------------------------------
-		// Safety - Prevents run-away loops
-		// -----------------------------------
-
-		// If the script being called happens to have the same
-		// hook call within it a loop can happen
+		// ---------------------------------
 		if ($this->_in_progress === TRUE)
 		{
 			return;
 		}
 
-		// -----------------------------------
-		// Set file path
-		// -----------------------------------
 
 		if ( ! isset($data['filepath'], $data['filename']))
 		{

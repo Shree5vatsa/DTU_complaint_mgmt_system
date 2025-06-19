@@ -1,87 +1,31 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-/**
- * Logging Class
- *
- * @package		CodeIgniter
- * @subpackage	Libraries
- * @category	Logging
- * @author		EllisLab Dev Team
- * @link		https://codeigniter.com/user_guide/general/errors.html
- */
 class CI_Log {
 
-	/**
-	 * Path to save log files
-	 *
-	 * @var string
-	 */
 	protected $_log_path;
 
-	/**
-	 * File permissions
-	 *
-	 * @var	int
-	 */
 	protected $_file_permissions = 0644;
 
-	/**
-	 * Level of logging
-	 *
-	 * @var int
-	 */
 	protected $_threshold = 1;
 
-	/**
-	 * Array of threshold levels to log
-	 *
-	 * @var array
-	 */
 	protected $_threshold_array = array();
 
-	/**
-	 * Format of timestamp for log files
-	 *
-	 * @var string
-	 */
+	
 	protected $_date_fmt = 'Y-m-d H:i:s';
 
-	/**
-	 * Filename extension
-	 *
-	 * @var	string
-	 */
+	
 	protected $_file_ext;
 
-	/**
-	 * Whether or not the logger can write to the log files
-	 *
-	 * @var bool
-	 */
+	
 	protected $_enabled = TRUE;
 
-	/**
-	 * Predefined logging levels
-	 *
-	 * @var array
-	 */
 	protected $_levels = array('ERROR' => 1, 'DEBUG' => 2, 'INFO' => 3, 'ALL' => 4);
 
-	/**
-	 * mbstring.func_overload flag
-	 *
-	 * @var	bool
-	 */
+	
 	protected static $func_overload;
 
-	// --------------------------------------------------------------------
-
-	/**
-	 * Class constructor
-	 *
-	 * @return	void
-	 */
+	
 	public function __construct()
 	{
 		$config =& get_config();
@@ -120,17 +64,6 @@ class CI_Log {
 		}
 	}
 
-	// --------------------------------------------------------------------
-
-	/**
-	 * Write Log File
-	 *
-	 * Generally this function will be called using the global log_message() function
-	 *
-	 * @param	string	$level 	The error level: 'error', 'debug' or 'info'
-	 * @param	string	$msg 	The error message
-	 * @return	bool
-	 */
 	public function write_log($level, $msg)
 	{
 		if ($this->_enabled === FALSE)
@@ -200,32 +133,11 @@ class CI_Log {
 		return is_int($result);
 	}
 
-	// --------------------------------------------------------------------
-
-	/**
-	 * Format the log line.
-	 *
-	 * This is for extensibility of log formatting
-	 * If you want to change the log format, extend the CI_Log class and override this method
-	 *
-	 * @param	string	$level 	The error level
-	 * @param	string	$date 	Formatted date string
-	 * @param	string	$message 	The log message
-	 * @return	string	Formatted log line with a new line character at the end
-	 */
 	protected function _format_line($level, $date, $message)
 	{
 		return $level.' - '.$date.' --> '.$message.PHP_EOL;
 	}
 
-	// --------------------------------------------------------------------
-
-	/**
-	 * Byte-safe strlen()
-	 *
-	 * @param	string	$str
-	 * @return	int
-	 */
 	protected static function strlen($str)
 	{
 		return (self::$func_overload)
@@ -233,22 +145,11 @@ class CI_Log {
 			: strlen($str);
 	}
 
-	// --------------------------------------------------------------------
-
-	/**
-	 * Byte-safe substr()
-	 *
-	 * @param	string	$str
-	 * @param	int	$start
-	 * @param	int	$length
-	 * @return	string
-	 */
 	protected static function substr($str, $start, $length = NULL)
 	{
 		if (self::$func_overload)
 		{
-			// mb_substr($str, $start, null, '8bit') returns an empty
-			// string on PHP 5.3
+		
 			isset($length) OR $length = ($start >= 0 ? self::strlen($str) - $start : -$start);
 			return mb_substr($str, $start, $length, '8bit');
 		}
