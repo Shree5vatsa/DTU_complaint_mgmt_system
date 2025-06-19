@@ -2,39 +2,14 @@
 
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-/**
- * PHP ext/mbstring compatibility package
- *
- * @package		CodeIgniter
- * @subpackage	CodeIgniter
- * @category	Compatibility
- * @author		Andrey Andreev
- * @link		https://codeigniter.com/user_guide/
- * @link		http://php.net/mbstring
- */
-
-// ------------------------------------------------------------------------
-
 if (MB_ENABLED === TRUE)
 {
 	return;
 }
 
-// ------------------------------------------------------------------------
-
 if ( ! function_exists('mb_strlen'))
 {
-	/**
-	 * mb_strlen()
-	 *
-	 * WARNING: This function WILL fall-back to strlen()
-	 * if iconv is not available!
-	 *
-	 * @link	http://php.net/mb_strlen
-	 * @param	string	$str
-	 * @param	string	$encoding
-	 * @return	int
-	 */
+
 	function mb_strlen($str, $encoding = NULL)
 	{
 		if (ICONV_ENABLED === TRUE)
@@ -51,19 +26,7 @@ if ( ! function_exists('mb_strlen'))
 
 if ( ! function_exists('mb_strpos'))
 {
-	/**
-	 * mb_strpos()
-	 *
-	 * WARNING: This function WILL fall-back to strpos()
-	 * if iconv is not available!
-	 *
-	 * @link	http://php.net/mb_strpos
-	 * @param	string	$haystack
-	 * @param	string	$needle
-	 * @param	int	$offset
-	 * @param	string	$encoding
-	 * @return	mixed
-	 */
+
 	function mb_strpos($haystack, $needle, $offset = 0, $encoding = NULL)
 	{
 		if (ICONV_ENABLED === TRUE)
@@ -80,19 +43,7 @@ if ( ! function_exists('mb_strpos'))
 
 if ( ! function_exists('mb_substr'))
 {
-	/**
-	 * mb_substr()
-	 *
-	 * WARNING: This function WILL fall-back to substr()
-	 * if iconv is not available.
-	 *
-	 * @link	http://php.net/mb_substr
-	 * @param	string	$str
-	 * @param	int	$start
-	 * @param	int 	$length
-	 * @param	string	$encoding
-	 * @return	string
-	 */
+
 	function mb_substr($str, $start, $length = NULL, $encoding = NULL)
 	{
 		if (ICONV_ENABLED === TRUE)

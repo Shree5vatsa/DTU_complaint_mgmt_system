@@ -1,54 +1,17 @@
 <?php
 defined('BASEPATH') OR exit('No direct script access allowed');
 
-/**
- * Language Class
- *
- * @package		CodeIgniter
- * @subpackage	Libraries
- * @category	Language
- * @author		EllisLab Dev Team
- * @link		https://codeigniter.com/user_guide/libraries/language.html
- */
 class CI_Lang {
 
-	/**
-	 * List of translations
-	 *
-	 * @var	array
-	 */
 	public $language =	array();
 
-	/**
-	 * List of loaded language files
-	 *
-	 * @var	array
-	 */
 	public $is_loaded =	array();
 
-	/**
-	 * Class constructor
-	 *
-	 * @return	void
-	 */
 	public function __construct()
 	{
 		log_message('info', 'Language Class Initialized');
 	}
 
-	// --------------------------------------------------------------------
-
-	/**
-	 * Load a language file
-	 *
-	 * @param	mixed	$langfile	Language file name
-	 * @param	string	$idiom		Language name (english, etc.)
-	 * @param	bool	$return		Whether to return the loaded array of translations
-	 * @param 	bool	$add_suffix	Whether to add suffix to $langfile
-	 * @param 	string	$alt_path	Alternative path to look for the language file
-	 *
-	 * @return	void|string[]	Array containing translations, if $return is set to TRUE
-	 */
 	public function load($langfile, $idiom = '', $return = FALSE, $add_suffix = TRUE, $alt_path = '')
 	{
 		if (is_array($langfile))
@@ -140,22 +103,11 @@ class CI_Lang {
 		return TRUE;
 	}
 
-	// --------------------------------------------------------------------
-
-	/**
-	 * Language line
-	 *
-	 * Fetches a single line of text from the language array
-	 *
-	 * @param	string	$line		Language line key
-	 * @param	bool	$log_errors	Whether to log an error message if the line is not found
-	 * @return	string	Translation
-	 */
 	public function line($line, $log_errors = TRUE)
 	{
 		$value = isset($this->language[$line]) ? $this->language[$line] : FALSE;
 
-		// Because killer robots like unicorns!
+		
 		if ($value === FALSE && $log_errors === TRUE)
 		{
 			log_message('error', 'Could not find the language line "'.$line.'"');
