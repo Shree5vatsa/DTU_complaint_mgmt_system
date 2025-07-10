@@ -1,3 +1,11 @@
+Hello! I'm Shreevatsa Acharya currently studying in DTU Delhi, and this was a project I built during my first year of college out of curiosity and a desire to learn. At the time, I was especially interested in understanding how databases work — how data is stored, retrieved, and managed behind the scenes in real systems.
+
+While this ended up taking the shape of a web-based complaint management system, my primary goal was to study core DBMS concepts, like relational design, SQL queries, normalization, and user-role-based access control. I used PHP and MySQL mainly because they were simple enough for me to prototype quickly.
+
+This isn't a professional-grade application — it's more of a learning experiment that helped me bridge classroom theory with practical implementation. If you’re reviewing this as part of a project evaluation or interview, I’d love any feedback or suggestions on how I can improve!
+
+Thanks for checking it out.
+
 # DTU Complaint Management System
 
 ## System Information
