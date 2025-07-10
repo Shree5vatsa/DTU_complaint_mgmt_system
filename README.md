@@ -78,6 +78,4 @@ If you're reviewing this as part of an evaluation or interview, I'd love to hear
 - Civil Engineering (CE)
 - Hostel Administration (HST)
 - Library (LIB)
-- Student Affairs (SA)
-- Accounts (ACC)
-- Medical Facilities (MED) 
+ 
