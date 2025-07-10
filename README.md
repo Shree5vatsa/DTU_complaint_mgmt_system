@@ -60,24 +60,6 @@ If you're reviewing this as part of an evaluation or interview, I'd love to hear
 - **Email:** admin@dtu.ac.in
 - **Password:** admin123
 
-## Configuration Requirements
-1. Database Setup:
-   - Import `/DATABASE FILE/dtu_portal.sql`
-   - Configure database connection in `includes/config.php`
-
-2. Email Configuration:
-   - Update SMTP settings in `includes/config.php`:
-   ```php
-   define('SMTP_HOST', 'smtp.gmail.com');
-   define('SMTP_PORT', 587);
-   define('SMTP_USER', 'your-email@dtu.ac.in');
-   define('SMTP_PASS', 'your-email-password');
-   ```
-
-3. File Upload Directory:
-   - Ensure `uploads/` directory has write permissions (755)
-   - Maximum upload size: 5MB
-   - Allowed file types: pdf, doc, docx, jpg, jpeg, png
 
 ## User Roles
 1. Super Admin (Level 100)
