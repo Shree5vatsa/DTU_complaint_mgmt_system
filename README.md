@@ -40,20 +40,17 @@ If you're reviewing this as part of an evaluation or interview, I'd love to hear
    - Open `includes/config.php`.
    - Set your MySQL database credentials (host, username, password, database name) in this file.
 
-3. **(Optional) Configure Email:**
-   - In `includes/config.php`, update the SMTP settings if you want email notifications to work.
-
-4. **Set File Permissions:**
+3. **Set File Permissions:**
    - Make sure the `uploads/` directory is writable (permission 755 is recommended).
 
-5. **Start Your Web Server:**
+4. **Start Your Web Server:**
    - If using XAMPP, place the project folder (`DTU_complaint_mgmt_system`) inside the `htdocs` directory.
    - Start Apache and MySQL from the XAMPP control panel.
 
-6. **Access the App:**
+5. **Access the App:**
    - Open your browser and go to: `http://localhost/DTU_complaint_mgmt_system`
 
-7. **Login:**
+6. **Login:**
    - Use the default admin credentials (see below).
 
 ## Default Admin Login
